@@ -17,7 +17,7 @@ import (
 
 type Maps struct {
 	urlMap    map[string]int
-	domainSet map[string]int
+	domainMap map[string]int
 	ipMap     map[string]int
 }
 
@@ -35,17 +35,34 @@ func parse_args() []string {
 	return arguments
 }
 
-func fillMap(m map[string]int, key string) {
-	if value, ok := m[key]; ok {
-		value = value + 1
-		m[key] = value
+func fillMap(m map[string]int, key string, kind string) {
+
+	if kind == "url" || kind == "ip" {
+		if value, ok := m[key]; ok {
+			value = value + 1
+			m[key] = value
+		} else {
+			m[key] = 1
+		}
 	} else {
-		m[key] = 1
+		re := regexp.MustCompile(`https://([^/]+)`)
+		match := re.FindStringSubmatch(key)
+		if len(match) > 1 {
+
+			if value, ok := m[match[1]]; ok {
+				value = value + 1
+				m[match[1]] = value
+			} else {
+				m[match[1]] = 1
+			}
+
+		}
+
 	}
 
 }
 
-func fillDomainSet(maps Maps) {
+/*func fillDomainSet(maps Maps) {
 
 	re := regexp.MustCompile(`https://([^/]+)`)
 
@@ -58,7 +75,7 @@ func fillDomainSet(maps Maps) {
 		}
 	}
 
-}
+}*/
 
 func sortMap(m map[string]int) []string {
 
@@ -92,17 +109,15 @@ func traverseFile(filename string, maps Maps) Maps {
 		details := strings.Fields(line)
 
 		// fill and sort url map
-		fillMap(maps.urlMap, details[3])
+		fillMap(maps.urlMap, details[3], "url")
 		// fill and sort ip map
-		fillMap(maps.ipMap, details[2])
+		fillMap(maps.ipMap, details[2], "ip")
+
+		fillMap(maps.domainMap, details[2], "domain")
+		// fillDomainSet(maps, "domain")
 
 	}
 	// domain set would get filled in sorted order
-	fillDomainSet(maps)
-
-	// sortMap(maps.urlMap)
-	// sortMap(maps.ipMap)
-	// sortMap(maps.domainSet)
 
 	return maps
 }
@@ -114,10 +129,10 @@ func displayResult(maps Maps, arguments []string, elapsed time.Duration) {
 	}
 
 	fmt.Println("* Unique URLS: ", len(maps.urlMap))
-	fmt.Println("* Unique Domains: ", len(maps.domainSet))
+	fmt.Println("* Unique Domains: ", len(maps.domainMap))
 	fmt.Println("* Top 10 Websites: ")
 
-	sortedDomains := sortMap(maps.domainSet)
+	sortedDomains := sortMap(maps.domainMap)
 
 	i := 0
 	for _, element := range sortedDomains {
@@ -153,7 +168,7 @@ func main() {
 	arguments := parse_args()
 	maps := Maps{
 		urlMap:    make(map[string]int),
-		domainSet: make(map[string]int),
+		domainMap: make(map[string]int),
 		ipMap:     make(map[string]int),
 	}
 	// Read from each file from an array
